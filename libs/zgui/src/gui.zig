@@ -541,6 +541,55 @@ extern fn zguiShowDemoWindow(popen: ?*bool) void;
 // Windows
 //
 //--------------------------------------------------------------------------------------------------
+pub const WindowSettings = struct {
+    name: [:0]const u8,
+    pos: [2]i16,
+    size: [2]i16,
+    collapsed: bool,
+};
+pub fn getWindowSettings(alloc: std.mem.Allocator) ![]WindowSettings {
+    zguiWindowSettings_populate();
+    var n = zguiWindowSettings_size();
+    var results = try std.ArrayList(WindowSettings).initCapacity(alloc, @intCast(usize, n));
+    errdefer results.deinit();
+
+    var maybe_settings = zguiWindowSettings_begin();
+    while (maybe_settings) |settings| {
+        try results.append(.{
+            .name = std.mem.span(settings.getName()),
+            .pos = settings.pos,
+            .size = settings.size,
+            .collapsed = settings.collapsed,
+        });
+        maybe_settings = zguiWindowSettings_next(maybe_settings);
+    }
+    return results.toOwnedSlice();
+}
+const ImGuiWindowSettings = extern struct {
+    id: Ident,
+    pos: [2]i16,
+    size: [2]i16,
+    collapsed: bool,
+    want_apply: bool,
+
+    pub fn getName(self: *ImGuiWindowSettings) [*:0]const u8 {
+        return @ptrCast([*:0]const u8, @ptrCast([*]const ImGuiWindowSettings, self) + 1);
+    }
+};
+extern fn zguiWindowSettings_populate() void;
+extern fn zguiWindowSettings_size() c_int;
+extern fn zguiWindowSettings_begin() ?*ImGuiWindowSettings;
+extern fn zguiWindowSettings_next(prev: ?*ImGuiWindowSettings) ?*ImGuiWindowSettings;
+
+pub fn updateWindowSettings(settings: []WindowSettings) void {
+    for (settings) |s| {
+        zguiWindowSettings_update(s.name.ptr, s.pos[0], s.pos[1], s.size[0], s.size[1], s.collapsed);
+    }
+    zguiWindowSettings_setLoaded();
+}
+extern fn zguiWindowSettings_update(name: [*:0]const u8, pos_x: i16, pos_y: i16, size_x: i16, size_y: i16, collapsed: bool) void;
+extern fn zguiWindowSettings_setLoaded() void;
+
 const SetNextWindowPos = struct {
     x: f32,
     y: f32,

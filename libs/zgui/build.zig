@@ -74,6 +74,7 @@ pub fn package(
     const cflags = &.{"-fno-sanitize=undefined"};
 
     zgui_c_cpp.addCSourceFile(thisDir() ++ "/src/zgui.cpp", cflags);
+    zgui_c_cpp.addCSourceFile(thisDir() ++ "/src/zgui_internal.cpp", cflags);
 
     zgui_c_cpp.addCSourceFile(thisDir() ++ "/libs/imgui/imgui.cpp", cflags);
     zgui_c_cpp.addCSourceFile(thisDir() ++ "/libs/imgui/imgui_widgets.cpp", cflags);
