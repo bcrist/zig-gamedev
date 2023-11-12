@@ -13,7 +13,7 @@ pub fn build(b: *std.Build, options: Options) *std.Build.CompileStep {
         .optimize = options.optimize,
     });
 
-    const zgui_pkg = @import("../../build.zig").zgui_pkg;
+    const zgui_pkg = @import("../../build.zig").zgui_glfw_wgpu_pkg;
     const zmath_pkg = @import("../../build.zig").zmath_pkg;
     const zgpu_pkg = @import("../../build.zig").zgpu_pkg;
     const zglfw_pkg = @import("../../build.zig").zglfw_pkg;
@@ -28,7 +28,7 @@ pub fn build(b: *std.Build, options: Options) *std.Build.CompileStep {
     exe_options.addOption([]const u8, "content_dir", content_dir);
 
     const install_content_step = b.addInstallDirectory(.{
-        .source_dir = thisDir() ++ "/" ++ content_dir,
+        .source_dir = .{ .path = thisDir() ++ "/" ++ content_dir },
         .install_dir = .{ .custom = "" },
         .install_subdir = "bin/" ++ content_dir,
     });

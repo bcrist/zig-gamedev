@@ -75,8 +75,8 @@ pub const IBitmapDecoder = extern struct {
             pub usingnamespace IUnknown.Methods(T);
 
             pub inline fn GetFrame(self: *T, index: UINT, frame: ?*?*IBitmapFrameDecode) HRESULT {
-                return @ptrCast(*const IBitmapDecoder.VTable, self.__v)
-                    .GetFrame(@ptrCast(*IBitmapDecoder, self), index, frame);
+                return @as(*const IBitmapDecoder.VTable, @ptrCast(self.__v))
+                    .GetFrame(@as(*IBitmapDecoder, @ptrCast(self)), index, frame);
             }
         };
     }
@@ -107,12 +107,12 @@ pub const IBitmapSource = extern struct {
             pub usingnamespace IUnknown.Methods(T);
 
             pub inline fn GetSize(self: *T, width: *UINT, height: *UINT) HRESULT {
-                return @ptrCast(*const IBitmapSource.VTable, self.__v)
-                    .GetSize(@ptrCast(*IBitmapSource, self), width, height);
+                return @as(*const IBitmapSource.VTable, @ptrCast(self.__v))
+                    .GetSize(@as(*IBitmapSource, @ptrCast(self)), width, height);
             }
             pub inline fn GetPixelFormat(self: *T, guid: *PixelFormatGUID) HRESULT {
-                return @ptrCast(*const IBitmapSource.VTable, self.__v)
-                    .GetPixelFormat(@ptrCast(*IBitmapSource, self), guid);
+                return @as(*const IBitmapSource.VTable, @ptrCast(self.__v))
+                    .GetPixelFormat(@as(*IBitmapSource, @ptrCast(self)), guid);
             }
             pub inline fn CopyPixels(
                 self: *T,
@@ -121,8 +121,8 @@ pub const IBitmapSource = extern struct {
                 size: UINT,
                 buffer: [*]BYTE,
             ) HRESULT {
-                return @ptrCast(*const IBitmapSource.VTable, self.__v)
-                    .CopyPixels(@ptrCast(*IBitmapSource, self), rect, stride, size, buffer);
+                return @as(*const IBitmapSource.VTable, @ptrCast(self.__v))
+                    .CopyPixels(@as(*IBitmapSource, @ptrCast(self)), rect, stride, size, buffer);
             }
         };
     }
@@ -204,8 +204,8 @@ pub const IFormatConverter = extern struct {
                 alpha_threshold_percent: f64,
                 palette_translate: BitmapPaletteType,
             ) HRESULT {
-                return @ptrCast(*const IFormatConverter.VTable, self.__v).Initialize(
-                    @ptrCast(*IFormatConverter, self),
+                return @as(*const IFormatConverter.VTable, @ptrCast(self.__v)).Initialize(
+                    @as(*IFormatConverter, @ptrCast(self)),
                     source,
                     dest_format,
                     dither,
@@ -249,8 +249,8 @@ pub const IImagingFactory = extern struct {
                 metadata: DecodeOptions,
                 decoder: ?*?*IBitmapDecoder,
             ) HRESULT {
-                return @ptrCast(*const IImagingFactory.VTable, self.__v).CreateDecoderFromFilename(
-                    @ptrCast(*IImagingFactory, self),
+                return @as(*const IImagingFactory.VTable, @ptrCast(self.__v)).CreateDecoderFromFilename(
+                    @as(*IImagingFactory, @ptrCast(self)),
                     filename,
                     vendor,
                     access,
@@ -259,8 +259,8 @@ pub const IImagingFactory = extern struct {
                 );
             }
             pub inline fn CreateFormatConverter(self: *T, converter: ?*?*IFormatConverter) HRESULT {
-                return @ptrCast(*const IImagingFactory.VTable, self.__v)
-                    .CreateFormatConverter(@ptrCast(*IImagingFactory, self), converter);
+                return @as(*const IImagingFactory.VTable, @ptrCast(self.__v))
+                    .CreateFormatConverter(@as(*IImagingFactory, @ptrCast(self)), converter);
             }
         };
     }
@@ -314,6 +314,13 @@ pub const IID_IImagingFactory = GUID{
     .Data2 = 0xc395,
     .Data3 = 0x4314,
     .Data4 = .{ 0x9c, 0x77, 0x54, 0xd7, 0xa9, 0x35, 0xff, 0x70 },
+};
+
+pub const GUID_PixelFormat2bppIndexed = PixelFormatGUID{
+    .Data1 = 0x6fddc324,
+    .Data2 = 0x4e03,
+    .Data3 = 0x4bfe,
+    .Data4 = .{ 0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x02 },
 };
 
 pub const GUID_PixelFormat24bppRGB = PixelFormatGUID{

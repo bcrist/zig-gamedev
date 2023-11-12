@@ -75,6 +75,15 @@ pub const RTV_DIMENSION = enum(UINT) {
     TEXTURE3D = 8,
 };
 
+pub const BOX = extern struct {
+    left: UINT,
+    top: UINT,
+    front: UINT,
+    right: UINT,
+    bottom: UINT,
+    back: UINT,
+};
+
 pub const BUFFER_RTV = extern struct {
     u0: extern union {
         FirstElement: UINT,
@@ -138,8 +147,10 @@ pub const RENDER_TARGET_VIEW_DESC = extern struct {
 
 pub const INPUT_CLASSIFICATION = enum(UINT) {
     INPUT_PER_VERTEX_DATA = 0,
-    INPUT_PER_INSTNACE_DATA = 1,
+    INPUT_PER_INSTANCE_DATA = 1,
 };
+
+pub const APPEND_ALIGNED_ELEMENT: UINT = 0xffffffff;
 
 pub const INPUT_ELEMENT_DESC = extern struct {
     SemanticName: LPCSTR,
@@ -165,9 +176,10 @@ pub const USAGE = enum(UINT) {
 };
 
 pub const CPU_ACCCESS_FLAG = packed struct(UINT) {
+    __unused0: u16 = 0,
     WRITE: bool = false,
     READ: bool = false,
-    __unused: u30 = 0,
+    __unused: u14 = 0,
 };
 
 pub const RESOURCE_MISC_FLAG = packed struct(UINT) {
@@ -289,12 +301,12 @@ pub const BLEND_OP = enum(UINT) {
     MAX = 5,
 };
 
-pub const COLOR_WRITE_ENABLE = packed struct(UINT) {
+pub const COLOR_WRITE_ENABLE = packed struct(u8) {
     RED: bool = false,
     GREEN: bool = false,
     BLUE: bool = false,
     ALPHA: bool = false,
-    __unused: u28 = 0,
+    __unused: u4 = 0,
 
     pub const ALL = COLOR_WRITE_ENABLE{ .RED = true, .GREEN = true, .BLUE = true, .ALPHA = true };
 };
@@ -307,7 +319,7 @@ pub const RENDER_TARGET_BLEND_DESC = extern struct {
     SrcBlendAlpha: BLEND,
     DestBlendAlpha: BLEND,
     BlendOpAlpha: BLEND_OP,
-    RenderTargetWriteMask: UINT8,
+    RenderTargetWriteMask: COLOR_WRITE_ENABLE,
 };
 
 pub const BLEND_DESC = extern struct {
@@ -596,8 +608,8 @@ pub const IDeviceContext = extern struct {
                 NumBuffers: UINT,
                 ppConstantBuffers: ?[*]const *IBuffer,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).VSSetConstantBuffers(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).VSSetConstantBuffers(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     StartSlot,
                     NumBuffers,
                     ppConstantBuffers,
@@ -609,8 +621,8 @@ pub const IDeviceContext = extern struct {
                 NumViews: UINT,
                 ppShaderResourceViews: ?[*]const *IShaderResourceView,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).PSSetShaderResources(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).PSSetShaderResources(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     StartSlot,
                     NumViews,
                     ppShaderResourceViews,
@@ -622,8 +634,8 @@ pub const IDeviceContext = extern struct {
                 ppClassInstance: ?[*]const *IClassInstance,
                 NumClassInstances: UINT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).PSSetShader(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).PSSetShader(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     pPixelShader,
                     ppClassInstance,
                     NumClassInstances,
@@ -635,8 +647,8 @@ pub const IDeviceContext = extern struct {
                 NumSamplers: UINT,
                 ppSamplers: ?[*]const *ISamplerState,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).PSSetSamplers(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).PSSetSamplers(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     StartSlot,
                     NumSamplers,
                     ppSamplers,
@@ -648,8 +660,8 @@ pub const IDeviceContext = extern struct {
                 ppClassInstance: ?[*]const *IClassInstance,
                 NumClassInstances: UINT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).VSSetShader(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).VSSetShader(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     pVertexShader,
                     ppClassInstance,
                     NumClassInstances,
@@ -660,8 +672,22 @@ pub const IDeviceContext = extern struct {
                 VertexCount: UINT,
                 StartVertexLocation: UINT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .Draw(@ptrCast(*IDeviceContext, self), VertexCount, StartVertexLocation);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .Draw(@as(*IDeviceContext, @ptrCast(self)), VertexCount, StartVertexLocation);
+            }
+            pub inline fn DrawIndexed(
+                self: *T,
+                IndexCount: UINT,
+                StartIndexLocation: UINT,
+                BaseVertexLocation: INT,
+            ) void {
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .DrawIndexed(
+                    @ptrCast(self),
+                    IndexCount,
+                    StartIndexLocation,
+                    BaseVertexLocation,
+                );
             }
             pub inline fn Map(
                 self: *T,
@@ -671,8 +697,8 @@ pub const IDeviceContext = extern struct {
                 MapFlags: MAP_FLAG,
                 pMappedResource: ?*MAPPED_SUBRESOURCE,
             ) HRESULT {
-                return @ptrCast(*const IDeviceContext.VTable, self.__v).Map(
-                    @ptrCast(*IDeviceContext, self),
+                return @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).Map(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     pResource,
                     Subresource,
                     MapType,
@@ -681,8 +707,8 @@ pub const IDeviceContext = extern struct {
                 );
             }
             pub inline fn Unmap(self: *T, pResource: *IResource, Subresource: UINT) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .Unmap(@ptrCast(*IDeviceContext, self), pResource, Subresource);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .Unmap(@as(*IDeviceContext, @ptrCast(self)), pResource, Subresource);
             }
             pub inline fn PSSetConstantBuffers(
                 self: *T,
@@ -690,16 +716,16 @@ pub const IDeviceContext = extern struct {
                 NumBuffers: UINT,
                 ppConstantBuffers: ?[*]const *IBuffer,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).PSSetConstantBuffers(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).PSSetConstantBuffers(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     StartSlot,
                     NumBuffers,
                     ppConstantBuffers,
                 );
             }
             pub inline fn IASetInputLayout(self: *T, pInputLayout: ?*IInputLayout) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .IASetInputLayout(@ptrCast(*IDeviceContext, self), pInputLayout);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .IASetInputLayout(@as(*IDeviceContext, @ptrCast(self)), pInputLayout);
             }
             pub inline fn IASetVertexBuffers(
                 self: *T,
@@ -709,8 +735,8 @@ pub const IDeviceContext = extern struct {
                 pStrides: ?[*]const UINT,
                 pOffsets: ?[*]const UINT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).IASetVertexBuffers(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).IASetVertexBuffers(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     StartSlot,
                     NumBuffers,
                     ppVertexBuffers,
@@ -718,9 +744,22 @@ pub const IDeviceContext = extern struct {
                     pOffsets,
                 );
             }
+            pub inline fn IASetIndexBuffer(
+                self: *T,
+                pIndexBuffer: ?*IBuffer,
+                Format: dxgi.FORMAT,
+                Offset: UINT,
+            ) void {
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).IASetIndexBuffer(
+                    @ptrCast(self),
+                    pIndexBuffer,
+                    Format,
+                    Offset,
+                );
+            }
             pub inline fn IASetPrimitiveTopology(self: *T, Topology: PRIMITIVE_TOPOLOGY) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .IASetPrimitiveTopology(@ptrCast(*IDeviceContext, self), Topology);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .IASetPrimitiveTopology(@as(*IDeviceContext, @ptrCast(self)), Topology);
             }
             pub inline fn VSSetShaderResources(
                 self: *T,
@@ -728,8 +767,8 @@ pub const IDeviceContext = extern struct {
                 NumViews: UINT,
                 ppShaderResourceViews: ?[*]const *IShaderResourceView,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).VSSetShaderResources(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).VSSetShaderResources(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     StartSlot,
                     NumViews,
                     ppShaderResourceViews,
@@ -738,11 +777,11 @@ pub const IDeviceContext = extern struct {
             pub inline fn OMSetRenderTargets(
                 self: *T,
                 NumViews: UINT,
-                ppRenderTargetViews: ?[*]const IRenderTargetView,
+                ppRenderTargetViews: ?[*]const *IRenderTargetView,
                 pDepthStencilView: ?*IDepthStencilView,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).OMSetRenderTargets(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).OMSetRenderTargets(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     NumViews,
                     ppRenderTargetViews,
                     pDepthStencilView,
@@ -754,39 +793,59 @@ pub const IDeviceContext = extern struct {
                 BlendFactor: ?*const [4]FLOAT,
                 SampleMask: UINT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).OMSetBlendState(
-                    @ptrCast(*IDeviceContext, self),
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).OMSetBlendState(
+                    @as(*IDeviceContext, @ptrCast(self)),
                     pBlendState,
                     BlendFactor,
                     SampleMask,
                 );
             }
             pub inline fn RSSetState(self: *T, pRasterizerState: ?*IRasterizerState) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .RSSetState(@ptrCast(*IDeviceContext, self), pRasterizerState);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .RSSetState(@as(*IDeviceContext, @ptrCast(self)), pRasterizerState);
             }
             pub inline fn RSSetViewports(
                 self: *T,
                 NumViewports: UINT,
                 pViewports: [*]const VIEWPORT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .RSSetViewports(@ptrCast(*IDeviceContext, self), NumViewports, pViewports);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .RSSetViewports(@as(*IDeviceContext, @ptrCast(self)), NumViewports, pViewports);
             }
             pub inline fn RSSetScissorRects(self: *T, NumRects: UINT, pRects: ?[*]const RECT) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .RSSetScissorRects(@ptrCast(*IDeviceContext, self), NumRects, pRects);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .RSSetScissorRects(@as(*IDeviceContext, @ptrCast(self)), NumRects, pRects);
             }
             pub inline fn ClearRenderTargetView(
                 self: *T,
                 pRenderTargetView: *IRenderTargetView,
                 ColorRGBA: *const [4]FLOAT,
             ) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v)
-                    .ClearRenderTargetView(@ptrCast(*IDeviceContext, self), pRenderTargetView, ColorRGBA);
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .ClearRenderTargetView(@as(*IDeviceContext, @ptrCast(self)), pRenderTargetView, ColorRGBA);
             }
             pub inline fn Flush(self: *T) void {
-                @ptrCast(*const IDeviceContext.VTable, self.__v).Flush(@ptrCast(*IDeviceContext, self));
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v)).Flush(@as(*IDeviceContext, @ptrCast(self)));
+            }
+            pub inline fn UpdateSubresource(
+                self: *T,
+                pDstResource: *IResource,
+                DstSubresource: UINT,
+                pDstBox: ?*BOX,
+                pSrcData: *anyopaque,
+                SrcRowPitch: UINT,
+                SrcDepthPitch: UINT,
+            ) void {
+                @as(*const IDeviceContext.VTable, @ptrCast(self.__v))
+                    .UpdateSubresource(
+                    @ptrCast(self),
+                    pDstResource,
+                    DstSubresource,
+                    pDstBox,
+                    pSrcData,
+                    SrcRowPitch,
+                    SrcDepthPitch,
+                );
             }
         };
     }
@@ -824,7 +883,7 @@ pub const IDeviceContext = extern struct {
             ?[*]const *IClassInstance,
             UINT,
         ) callconv(WINAPI) void,
-        DrawIndexed: *anyopaque,
+        DrawIndexed: *const fn (*T, UINT, UINT, INT) callconv(WINAPI) void,
         Draw: *const fn (*T, UINT, UINT) callconv(WINAPI) void,
         Map: *const fn (
             *T,
@@ -850,7 +909,12 @@ pub const IDeviceContext = extern struct {
             ?[*]const UINT,
             ?[*]const UINT,
         ) callconv(WINAPI) void,
-        IASetIndexBuffer: *anyopaque,
+        IASetIndexBuffer: *const fn (
+            *T,
+            ?*IBuffer,
+            dxgi.FORMAT,
+            UINT,
+        ) callconv(WINAPI) void,
         DrawIndexedInstanced: *anyopaque,
         DrawInstanced: *anyopaque,
         GSSetConstantBuffers: *anyopaque,
@@ -872,7 +936,7 @@ pub const IDeviceContext = extern struct {
         OMSetRenderTargets: *const fn (
             *T,
             UINT,
-            ?[*]const IRenderTargetView,
+            ?[*]const *IRenderTargetView,
             ?*IDepthStencilView,
         ) callconv(WINAPI) void,
         OMSetRenderTargetsAndUnorderedAccessViews: *anyopaque,
@@ -894,7 +958,7 @@ pub const IDeviceContext = extern struct {
         RSSetScissorRects: *const fn (*T, UINT, ?[*]const RECT) callconv(WINAPI) void,
         CopySubresourceRegion: *anyopaque,
         CopyResource: *anyopaque,
-        UpdateSubresource: *anyopaque,
+        UpdateSubresource: *const fn (*T, *IResource, UINT, ?*BOX, *anyopaque, UINT, UINT) callconv(WINAPI) void,
         CopyStructureCount: *anyopaque,
         ClearRenderTargetView: *const fn (*T, *IRenderTargetView, *const [4]FLOAT) callconv(WINAPI) void,
         ClearUnorderedAccessViewUint: *anyopaque,
@@ -980,8 +1044,8 @@ pub const IDevice = extern struct {
                 pInitialData: ?*const SUBRESOURCE_DATA,
                 ppBuffer: *?*IBuffer,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateBuffer(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateBuffer(
+                    @as(*IDevice, @ptrCast(self)),
                     pDesc,
                     pInitialData,
                     ppBuffer,
@@ -993,8 +1057,8 @@ pub const IDevice = extern struct {
                 pInitialData: ?*const SUBRESOURCE_DATA,
                 ppTexture2D: ?*?*ITexture2D,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateTexture2D(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateTexture2D(
+                    @as(*IDevice, @ptrCast(self)),
                     pDesc,
                     pInitialData,
                     ppTexture2D,
@@ -1006,8 +1070,8 @@ pub const IDevice = extern struct {
                 pDesc: ?*const SHADER_RESOURCE_VIEW_DESC,
                 ppSRView: ?*?*IShaderResourceView,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateShaderResourceView(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateShaderResourceView(
+                    @as(*IDevice, @ptrCast(self)),
                     pResource,
                     pDesc,
                     ppSRView,
@@ -1019,8 +1083,8 @@ pub const IDevice = extern struct {
                 pDesc: ?*const RENDER_TARGET_VIEW_DESC,
                 ppRTView: ?*?*IRenderTargetView,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateRenderTargetView(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateRenderTargetView(
+                    @as(*IDevice, @ptrCast(self)),
                     pResource,
                     pDesc,
                     ppRTView,
@@ -1028,14 +1092,14 @@ pub const IDevice = extern struct {
             }
             pub inline fn CreateInputLayout(
                 self: *T,
-                pInputElementDescs: *const INPUT_ELEMENT_DESC,
+                pInputElementDescs: ?[*]const INPUT_ELEMENT_DESC,
                 NumElements: UINT,
-                pShaderBytecodeWithInputSignature: *anyopaque,
+                pShaderBytecodeWithInputSignature: *const anyopaque,
                 BytecodeLength: SIZE_T,
                 ppInputLayout: *?*IInputLayout,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateInputLayout(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateInputLayout(
+                    @as(*IDevice, @ptrCast(self)),
                     pInputElementDescs,
                     NumElements,
                     pShaderBytecodeWithInputSignature,
@@ -1045,13 +1109,13 @@ pub const IDevice = extern struct {
             }
             pub inline fn CreateVertexShader(
                 self: *T,
-                pShaderBytecode: *anyopaque,
+                pShaderBytecode: *const anyopaque,
                 BytecodeLength: SIZE_T,
                 pClassLinkage: ?*IClassLinkage,
                 ppVertexShader: ?*?*IVertexShader,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateVertexShader(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateVertexShader(
+                    @as(*IDevice, @ptrCast(self)),
                     pShaderBytecode,
                     BytecodeLength,
                     pClassLinkage,
@@ -1060,13 +1124,13 @@ pub const IDevice = extern struct {
             }
             pub inline fn CreatePixelShader(
                 self: *T,
-                pShaderBytecode: *anyopaque,
+                pShaderBytecode: *const anyopaque,
                 BytecodeLength: SIZE_T,
                 pClassLinkage: ?*IClassLinkage,
                 ppPixelShader: ?*?*IPixelShader,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreatePixelShader(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreatePixelShader(
+                    @as(*IDevice, @ptrCast(self)),
                     pShaderBytecode,
                     BytecodeLength,
                     pClassLinkage,
@@ -1078,16 +1142,16 @@ pub const IDevice = extern struct {
                 pBlendStateDesc: *const BLEND_DESC,
                 ppBlendState: ?*?*IBlendState,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v)
-                    .CreateBlendState(@ptrCast(*IDevice, self), pBlendStateDesc, ppBlendState);
+                return @as(*const IDevice.VTable, @ptrCast(self.__v))
+                    .CreateBlendState(@as(*IDevice, @ptrCast(self)), pBlendStateDesc, ppBlendState);
             }
             pub inline fn CreateRasterizerState(
                 self: *T,
                 pRasterizerDesc: *const RASTERIZER_DESC,
                 ppRasterizerState: ?*?*IRasterizerState,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateRasterizerState(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateRasterizerState(
+                    @as(*IDevice, @ptrCast(self)),
                     pRasterizerDesc,
                     ppRasterizerState,
                 );
@@ -1097,8 +1161,8 @@ pub const IDevice = extern struct {
                 pSamplerDesc: *const SAMPLER_DESC,
                 ppSamplerState: ?*?*ISamplerState,
             ) HRESULT {
-                return @ptrCast(*const IDevice.VTable, self.__v).CreateSamplerState(
-                    @ptrCast(*IDevice, self),
+                return @as(*const IDevice.VTable, @ptrCast(self.__v)).CreateSamplerState(
+                    @as(*IDevice, @ptrCast(self)),
                     pSamplerDesc,
                     ppSamplerState,
                 );
@@ -1139,15 +1203,15 @@ pub const IDevice = extern struct {
         CreateDepthStencilView: *anyopaque,
         CreateInputLayout: *const fn (
             *T,
-            *const INPUT_ELEMENT_DESC,
+            ?[*]const INPUT_ELEMENT_DESC,
             UINT,
-            *anyopaque,
+            *const anyopaque,
             SIZE_T,
             *?*IInputLayout,
         ) callconv(WINAPI) HRESULT,
         CreateVertexShader: *const fn (
             *T,
-            ?*anyopaque,
+            ?*const anyopaque,
             SIZE_T,
             ?*IClassLinkage,
             ?*?*IVertexShader,
@@ -1156,7 +1220,7 @@ pub const IDevice = extern struct {
         CreateGeometryShaderWithStreamOutput: *anyopaque,
         CreatePixelShader: *const fn (
             *T,
-            ?*anyopaque,
+            ?*const anyopaque,
             SIZE_T,
             ?*IClassLinkage,
             ?*?*IPixelShader,
@@ -1436,10 +1500,10 @@ pub extern "d3d11" fn D3D11CreateDeviceAndSwapChain(
 
 // Return codes as defined here:
 // https://docs.microsoft.com/en-us/windows/win32/direct3d11/d3d11-graphics-reference-returnvalues
-pub const ERROR_FILE_NOT_FOUND = @bitCast(HRESULT, @as(c_ulong, 0x887C0002));
-pub const ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS = @bitCast(HRESULT, @as(c_ulong, 0x887C0001));
-pub const ERROR_TOO_MANY_UNIQUE_VIEW_OBJECTS = @bitCast(HRESULT, @as(c_ulong, 0x887C0003));
-pub const ERROR_DEFERRED_CONTEXT_MAP_WITHOUT_INITIAL_DISCARD = @bitCast(HRESULT, @as(c_ulong, 0x887C0004));
+pub const ERROR_FILE_NOT_FOUND = @as(HRESULT, @bitCast(@as(c_ulong, 0x887C0002)));
+pub const ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS = @as(HRESULT, @bitCast(@as(c_ulong, 0x887C0001)));
+pub const ERROR_TOO_MANY_UNIQUE_VIEW_OBJECTS = @as(HRESULT, @bitCast(@as(c_ulong, 0x887C0003)));
+pub const ERROR_DEFERRED_CONTEXT_MAP_WITHOUT_INITIAL_DISCARD = @as(HRESULT, @bitCast(@as(c_ulong, 0x887C0004)));
 
 // error set corresponding to the above return codes
 pub const Error = error{

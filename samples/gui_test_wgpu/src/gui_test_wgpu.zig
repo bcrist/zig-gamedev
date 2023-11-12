@@ -21,7 +21,7 @@ const DemoState = struct {
 };
 
 fn create(allocator: std.mem.Allocator, window: *zglfw.Window) !*DemoState {
-    const gctx = try zgpu.GraphicsContext.create(allocator, window);
+    const gctx = try zgpu.GraphicsContext.create(allocator, window, .{});
 
     var arena_state = std.heap.ArenaAllocator.init(allocator);
     defer arena_state.deinit();
@@ -65,7 +65,7 @@ fn create(allocator: std.mem.Allocator, window: *zglfw.Window) !*DemoState {
     zgui.plot.init();
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
-        break :scale_factor math.max(scale[0], scale[1]);
+        break :scale_factor @max(scale[0], scale[1]);
     };
     const font_size = 16.0 * scale_factor;
     const font_large = zgui.io.addFontFromMemory(embedded_font_data, math.floor(font_size * 1.1));
@@ -77,7 +77,7 @@ fn create(allocator: std.mem.Allocator, window: *zglfw.Window) !*DemoState {
     zgui.backend.initWithConfig(
         window,
         gctx.device,
-        @enumToInt(zgpu.GraphicsContext.swapchain_format),
+        @intFromEnum(zgpu.GraphicsContext.swapchain_format),
         .{ .texture_filter_mode = .linear, .pipeline_multisample_count = 1 },
     );
 
@@ -253,7 +253,7 @@ fn update(demo: *DemoState) !void {
             const items = [_][:0]const u8{ "aaa", "bbb", "ccc", "ddd", "eee", "FFF", "ggg", "hhh" };
             if (zgui.beginCombo("Combo 0", .{ .preview_value = items[static.selection_index] })) {
                 for (items, 0..) |item, index| {
-                    const i = @intCast(u32, index);
+                    const i = @as(u32, @intCast(index));
                     if (zgui.selectable(item, .{ .selected = static.selection_index == i }))
                         static.selection_index = i;
                 }
@@ -431,7 +431,7 @@ fn update(demo: *DemoState) !void {
             const items = [_][:0]const u8{ "aaa", "bbb", "ccc", "ddd", "eee", "FFF", "ggg", "hhh" };
             if (zgui.beginListBox("List Box 0", .{})) {
                 for (items, 0..) |item, index| {
-                    const i = @intCast(u32, index);
+                    const i = @as(u32, @intCast(index));
                     if (zgui.selectable(item, .{ .selected = static.selection_index == i }))
                         static.selection_index = i;
                 }
@@ -547,7 +547,7 @@ fn update(demo: *DemoState) !void {
         .p = .{ 200, 700 },
         .r = 30,
         .col = zgui.colorConvertFloat3ToU32([_]f32{ 1, 1, 0 }),
-        .thickness = 15 + 15 * @floatCast(f32, @sin(demo.gctx.stats.time)),
+        .thickness = 15 + 15 * @as(f32, @floatCast(@sin(demo.gctx.stats.time))),
     });
 }
 

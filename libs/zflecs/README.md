@@ -8,7 +8,7 @@ Then in your `build.zig` add:
 
 ```zig
 const std = @import("std");
-const zsdl = @import("libs/zflecs/build.zig");
+const zflecs = @import("libs/zflecs/build.zig");
 
 pub fn build(b: *std.Build) void {
     ...
@@ -27,6 +27,8 @@ Now in your code you may import and use `zflecs`:
 const std = @import("std");
 const ecs = @import("zflecs");
 
+const Position = struct { x: f32, y: f32 };
+const Velocity = struct { x: f32, y: f32 };
 const Eats = struct {};
 const Apples = struct {};
 
@@ -54,14 +56,13 @@ pub fn main() !void {
     ecs.TAG(world, Eats);
     ecs.TAG(world, Apples);
 
-    ecs.SYSTEM(world, "move system", move, ecs.EcsOnUpdate, .{
-        .filter = .{
-            .terms = [_]ecs.term_t{
-                .{ .id = ecs.id(Position) },
-                .{ .id = ecs.id(Velocity) },
-            } ++ ecs.array(ecs.term_t, ecs.TERM_DESC_CACHE_SIZE - 2),
-        },
-    });
+    {
+        var system_desc = ecs.system_desc_t{};
+        system_desc.callback = move;
+        system_desc.query.filter.terms[0] = .{ .id = ecs.id(Position) };
+        system_desc.query.filter.terms[1] = .{ .id = ecs.id(Velocity) };
+        ecs.SYSTEM(world, "move system", ecs.OnUpdate, &system_desc);
+    }
 
     const bob = ecs.new_entity(world, "Bob");
     _ = ecs.set(world, bob, Position, .{ .x = 0, .y = 0 });
@@ -74,4 +75,12 @@ pub fn main() !void {
     const p = ecs.get(world, bob, Position).?;
     std.debug.print("Bob's position is ({d}, {d})\n", .{ p.x, p.y });
 }
+```
+
+`zig build run` should result in:
+
+```
+Move entities with [main.Position, main.Velocity, (Identifier,Name), (main.Eats,main.Apples)]
+Move entities with [main.Position, main.Velocity, (Identifier,Name), (main.Eats,main.Apples)]
+Bob's position is (2, 4)
 ```

@@ -16,7 +16,7 @@ const wgsl_vs =
 \\      @builtin(position) position_clip: vec4<f32>,
 \\      @location(0) color: vec3<f32>,
 \\  }
-\\  @stage(vertex) fn main(
+\\  @vertex fn main(
 \\      @location(0) position: vec3<f32>,
 \\      @location(1) color: vec3<f32>,
 \\  ) -> VertexOut {
@@ -27,7 +27,7 @@ const wgsl_vs =
 \\  }
 ;
 const wgsl_fs =
-\\  @stage(fragment) fn main(
+\\  @fragment fn main(
 \\      @location(0) color: vec3<f32>,
 \\  ) -> @location(0) vec4<f32> {
 \\      return vec4(color, 1.0);
@@ -54,7 +54,7 @@ const DemoState = struct {
 };
 
 fn init(allocator: std.mem.Allocator, window: *zglfw.Window) !DemoState {
-    const gctx = try zgpu.GraphicsContext.create(allocator, window);
+    const gctx = try zgpu.GraphicsContext.create(allocator, window, .{});
 
     // Create a bind group layout needed for our render pipeline.
     const bind_group_layout = gctx.createBindGroupLayout(&.{
@@ -168,7 +168,7 @@ fn draw(demo: *DemoState) void {
     const gctx = demo.gctx;
     const fb_width = gctx.swapchain_descriptor.width;
     const fb_height = gctx.swapchain_descriptor.height;
-    const t = @floatCast(f32, gctx.stats.time);
+    const t = @as(f32, @floatCast(gctx.stats.time));
 
     const cam_world_to_view = zm.lookAtLh(
         zm.f32x4(3.0, 3.0, -3.0, 1.0),
@@ -177,7 +177,7 @@ fn draw(demo: *DemoState) void {
     );
     const cam_view_to_clip = zm.perspectiveFovLh(
         0.25 * math.pi,
-        @intToFloat(f32, fb_width) / @intToFloat(f32, fb_height),
+        @as(f32, @floatFromInt(fb_width)) / @as(f32, @floatFromInt(fb_height)),
         0.01,
         200.0,
     );
@@ -339,7 +339,7 @@ pub fn main() !void {
 
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
-        break :scale_factor math.max(scale[0], scale[1]);
+        break :scale_factor @max(scale[0], scale[1]);
     };
 
     zgui.init(allocator);
@@ -350,7 +350,7 @@ pub fn main() !void {
     zgui.backend.init(
         window,
         demo.gctx.device,
-        @enumToInt(zgpu.GraphicsContext.swapchain_format),
+        @intFromEnum(zgpu.GraphicsContext.swapchain_format),
     );
     defer zgui.backend.deinit();
 

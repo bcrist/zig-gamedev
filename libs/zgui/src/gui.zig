@@ -1,4 +1,19 @@
 //--------------------------------------------------------------------------------------------------
+//
+// Zig bindings for 'dear imgui' library. Easy to use, hand-crafted API with default arguments,
+// named parameters and Zig style text formatting.
+//
+//--------------------------------------------------------------------------------------------------
+pub const version = @import("std").SemanticVersion{ .major = 1, .minor = 89, .patch = 6 };
+
+pub const plot = @import("plot.zig");
+pub const backend = switch (@import("zgui_options").backend) {
+    .glfw_wgpu => @import("backend_glfw_wgpu.zig"),
+    .glfw_opengl3 => @import("backend_glfw_opengl.zig"),
+    .win32_dx12 => .{}, // TODO:
+    .no_backend => .{},
+};
+//--------------------------------------------------------------------------------------------------
 const std = @import("std");
 const assert = std.debug.assert;
 //--------------------------------------------------------------------------------------------------
@@ -35,7 +50,7 @@ pub fn deinit() void {
             while (it.next()) |kv| {
                 const address = kv.key_ptr.*;
                 const size = kv.value_ptr.*;
-                mem_allocator.?.free(@intToPtr([*]align(mem_alignment) u8, address)[0..size]);
+                mem_allocator.?.free(@as([*]align(mem_alignment) u8, @ptrFromInt(address))[0..size]);
                 std.log.info(
                     "[zgui] Possible memory leak or static memory usage detected: (address: 0x{x}, size: {d})",
                     .{ address, size },
@@ -80,7 +95,7 @@ fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
         size,
     ) catch @panic("zgui: out of memory");
 
-    mem_allocations.?.put(@ptrToInt(mem.ptr), size) catch @panic("zgui: out of memory");
+    mem_allocations.?.put(@intFromPtr(mem.ptr), size) catch @panic("zgui: out of memory");
 
     return mem.ptr;
 }
@@ -91,8 +106,8 @@ fn zguiMemFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void {
         defer mem_mutex.unlock();
 
         if (mem_allocations != null) {
-            const size = mem_allocations.?.fetchRemove(@ptrToInt(ptr)).?.value;
-            const mem = @ptrCast([*]align(mem_alignment) u8, @alignCast(mem_alignment, ptr))[0..size];
+            const size = mem_allocations.?.fetchRemove(@intFromPtr(ptr)).?.value;
+            const mem = @as([*]align(mem_alignment) u8, @ptrCast(@alignCast(ptr)))[0..size];
             mem_allocator.?.free(mem);
         }
     }
@@ -165,7 +180,7 @@ pub const io = struct {
     ) Font;
 
     pub fn addFontFromMemory(fontdata: []const u8, size_pixels: f32) Font {
-        return zguiIoAddFontFromMemory(fontdata.ptr, @intCast(i32, fontdata.len), size_pixels);
+        return zguiIoAddFontFromMemory(fontdata.ptr, @as(i32, @intCast(fontdata.len)), size_pixels);
     }
     extern fn zguiIoAddFontFromMemory(font_data: *const anyopaque, font_size: i32, size_pixels: f32) Font;
 
@@ -175,7 +190,13 @@ pub const io = struct {
         config: ?FontConfig,
         ranges: ?[*]const Wchar,
     ) Font {
-        return zguiIoAddFontFromMemoryWithConfig(fontdata.ptr, @intCast(i32, fontdata.len), size_pixels, if (config) |c| &c else null, ranges);
+        return zguiIoAddFontFromMemoryWithConfig(
+            fontdata.ptr,
+            @as(i32, @intCast(fontdata.len)),
+            size_pixels,
+            if (config) |c| &c else null,
+            ranges,
+        );
     }
     extern fn zguiIoAddFontFromMemoryWithConfig(
         font_data: *const anyopaque,
@@ -203,6 +224,10 @@ pub const io = struct {
 
     pub const getFontsTexId = zguiIoGetFontsTexId;
     extern fn zguiIoGetFontsTexId() TextureIdent;
+
+    /// `pub fn zguiIoSetConfigWindowsMoveFromTitleBarOnly(bool) void`
+    pub const setConfigWindowsMoveFromTitleBarOnly = zguiIoSetConfigWindowsMoveFromTitleBarOnly;
+    extern fn zguiIoSetConfigWindowsMoveFromTitleBarOnly(enabled: bool) void;
 
     /// `pub fn zguiIoGetWantCaptureMouse() bool`
     pub const getWantCaptureMouse = zguiIoGetWantCaptureMouse;
@@ -871,10 +896,10 @@ pub const Style = extern struct {
     extern fn zguiStyle_ScaleAllSizes(style: *Style, scale_factor: f32) void;
 
     pub fn getColor(style: Style, idx: StyleCol) [4]f32 {
-        return style.colors[@enumToInt(idx)];
+        return style.colors[@intFromEnum(idx)];
     }
     pub fn setColor(style: *Style, idx: StyleCol, color: [4]f32) void {
-        style.colors[@enumToInt(idx)] = color;
+        style.colors[@intFromEnum(idx)] = color;
     }
 };
 /// `pub fn getStyle() *Style`
@@ -1188,6 +1213,13 @@ pub const setMouseCursor = zguiSetMouseCursor;
 extern fn zguiGetMouseCursor() Cursor;
 extern fn zguiSetMouseCursor(cursor: Cursor) void;
 //--------------------------------------------------------------------------------------------------
+pub fn getMousePos() [2]f32 {
+    var pos: [2]f32 = undefined;
+    zguiGetMousePos(&pos);
+    return pos;
+}
+extern fn zguiGetMousePos(pos: *[2]f32) void;
+//--------------------------------------------------------------------------------------------------
 /// `pub fn alignTextToFramePadding() void`
 pub const alignTextToFramePadding = zguiAlignTextToFramePadding;
 /// `pub fn getTextLineHeight() f32`
@@ -1478,6 +1510,43 @@ pub fn combo(label: [:0]const u8, args: Combo) bool {
         args.items_separated_by_zeros,
         args.popup_max_height_in_items,
     );
+}
+/// creates a combo box directly from a pointer to an enum value using zig's
+/// comptime mechanics to infer the items for the list at compile time
+pub fn comboFromEnum(
+    label: [:0]const u8,
+    /// must be a pointer to an enum value (var my_enum: *FoodKinds = .Banana)
+    /// that is backed by some kind of integer that can safely cast into an
+    /// i32 (the underlying imgui restriction)
+    current_item: anytype,
+) bool {
+    const item_names = comptime lbl: {
+        const item_type = @typeInfo(@TypeOf(current_item.*));
+        switch (item_type) {
+            .Enum => |e| {
+                comptime var str: [:0]const u8 = "";
+
+                inline for (e.fields) |f| {
+                    str = str ++ f.name ++ "\x00";
+                }
+                break :lbl str;
+            },
+            else => {
+                @compileError("Error: current_item must be a pointer-to-an-enum, not a " ++ @TypeOf(current_item));
+            },
+        }
+    };
+
+    var item: i32 = @intCast(@intFromEnum(current_item.*));
+
+    const result = combo(label, .{
+        .items_separated_by_zeros = item_names,
+        .current_item = &item,
+    });
+
+    current_item.* = @enumFromInt(item);
+
+    return result;
 }
 extern fn zguiCombo(
     label: [*:0]const u8,
@@ -2684,7 +2753,7 @@ extern fn zguiSetNextItemOpen(is_open: bool, cond: Condition) void;
 //--------------------------------------------------------------------------------------------------
 pub const SelectableFlags = packed struct(u32) {
     dont_close_popups: bool = false,
-    span_all_colums: bool = false,
+    span_all_columns: bool = false,
     allow_double_click: bool = false,
     disabled: bool = false,
     allow_item_overlap: bool = false,
@@ -2888,8 +2957,8 @@ pub const BeginTable = struct {
     outer_size: [2]f32 = .{ 0, 0 },
     inner_width: f32 = 0,
 };
-pub fn beginTable(name: [:0]const u8, args: BeginTable) void {
-    zguiBeginTable(name, args.column, args.flags, &args.outer_size, args.inner_width);
+pub fn beginTable(name: [:0]const u8, args: BeginTable) bool {
+    return zguiBeginTable(name, args.column, args.flags, &args.outer_size, args.inner_width);
 }
 extern fn zguiBeginTable(
     str_id: [*:0]const u8,
@@ -2897,7 +2966,7 @@ extern fn zguiBeginTable(
     flags: TableFlags,
     outer_size: *const [2]f32,
     inner_width: f32,
-) void;
+) bool;
 
 pub fn endTable() void {
     zguiEndTable();
@@ -2997,6 +3066,11 @@ pub const MouseButton = enum(u32) {
     right = 1,
     middle = 2,
 };
+
+/// `pub fn isMouseDown(mouse_button: MouseButton) bool`
+pub const isMouseDown = zguiIsMouseDown;
+/// `pub fn isMouseClicked(mouse_button: MouseButton) bool`
+pub const isMouseClicked = zguiIsMouseClicked;
 /// `pub fn isMouseDoubleClicked(mouse_button: MouseButton) bool`
 pub const isMouseDoubleClicked = zguiIsMouseDoubleClicked;
 /// `pub fn isItemClicked(mouse_button: MouseButton) bool`
@@ -3019,6 +3093,8 @@ pub const isAnyItemHovered = zguiIsAnyItemHovered;
 pub const isAnyItemActive = zguiIsAnyItemActive;
 /// `pub fn isAnyItemFocused() bool`
 pub const isAnyItemFocused = zguiIsAnyItemFocused;
+extern fn zguiIsMouseDown(mouse_button: MouseButton) bool;
+extern fn zguiIsMouseClicked(mouse_button: MouseButton) bool;
 extern fn zguiIsMouseDoubleClicked(mouse_button: MouseButton) bool;
 extern fn zguiIsItemHovered(flags: HoveredFlags) bool;
 extern fn zguiIsItemActive() bool;
@@ -3203,6 +3279,8 @@ pub fn beginPopupModal(name: [:0]const u8, args: Begin) bool {
 pub fn openPopup(str_id: [:0]const u8, flags: PopupFlags) void {
     zguiOpenPopup(str_id, flags);
 }
+/// `pub fn beginPopup(str_id: [:0]const u8, flags: WindowFlags) bool`
+pub const beginPopup = zguiBeginPopup;
 /// `pub fn endPopup() void`
 pub const endPopup = zguiEndPopup;
 /// `pub fn closeCurrentPopup() void`
@@ -3210,6 +3288,7 @@ pub const closeCurrentPopup = zguiCloseCurrentPopup;
 extern fn zguiBeginPopupContextWindow() bool;
 extern fn zguiBeginPopupContextItem() bool;
 extern fn zguiBeginPopupModal(name: [*:0]const u8, popen: ?*bool, flags: WindowFlags) bool;
+extern fn zguiBeginPopup(str_id: [*:0]const u8, flags: WindowFlags) bool;
 extern fn zguiEndPopup() void;
 extern fn zguiOpenPopup(str_id: [*:0]const u8, flags: PopupFlags) void;
 extern fn zguiCloseCurrentPopup() void;
@@ -3388,9 +3467,11 @@ pub const DrawCmd = extern struct {
     vtx_offset: u32,
     idx_offset: u32,
     elem_count: u32,
-    user_callback: ?*anyopaque,
+    user_callback: ?DrawCallback,
     user_callback_data: ?*anyopaque,
 };
+
+pub const DrawCallback = *const fn (*const anyopaque, *const DrawCmd) callconv(.C) void;
 
 pub const getWindowDrawList = zguiGetWindowDrawList;
 pub const getBackgroundDrawList = zguiGetBackgroundDrawList;
@@ -3775,7 +3856,7 @@ pub const DrawList = *opaque {
         zguiDrawList_AddPolyline(
             draw_list,
             points.ptr,
-            @intCast(u32, points.len),
+            @as(u32, @intCast(points.len)),
             args.col,
             args.flags,
             args.thickness,
@@ -3798,7 +3879,7 @@ pub const DrawList = *opaque {
         zguiDrawList_AddConvexPolyFilled(
             draw_list,
             points.ptr,
-            @intCast(u32, points.len),
+            @as(u32, @intCast(points.len)),
             col,
         );
     }
@@ -4180,5 +4261,15 @@ pub const DrawList = *opaque {
         draw_list: DrawList,
         idx: DrawIdx,
     ) void;
+
     //----------------------------------------------------------------------------------------------
+
+    pub fn addCallback(draw_list: DrawList, callback: DrawCallback, callback_data: ?*anyopaque) void {
+        zguiDrawList_AddCallback(draw_list, callback, callback_data);
+    }
+    extern fn zguiDrawList_AddCallback(draw_list: DrawList, callback: DrawCallback, callback_data: ?*anyopaque) void;
+    pub fn addResetRenderStateCallback(draw_list: DrawList) void {
+        zguiDrawList_AddResetRenderStateCallback(draw_list);
+    }
+    extern fn zguiDrawList_AddResetRenderStateCallback(draw_list: DrawList) void;
 };
