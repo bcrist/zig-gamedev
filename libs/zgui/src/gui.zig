@@ -575,7 +575,7 @@ pub const WindowSettings = struct {
 pub fn getWindowSettings(alloc: std.mem.Allocator) ![]WindowSettings {
     zguiWindowSettings_populate();
     var n = zguiWindowSettings_size();
-    var results = try std.ArrayList(WindowSettings).initCapacity(alloc, @intCast(usize, n));
+    var results = try std.ArrayList(WindowSettings).initCapacity(alloc, @intCast(n));
     errdefer results.deinit();
 
     var maybe_settings = zguiWindowSettings_begin();
@@ -598,7 +598,8 @@ const ImGuiWindowSettings = extern struct {
     want_apply: bool,
 
     pub fn getName(self: *ImGuiWindowSettings) [*:0]const u8 {
-        return @ptrCast([*:0]const u8, @ptrCast([*]const ImGuiWindowSettings, self) + 1);
+        const many_self: [*]const ImGuiWindowSettings = @ptrCast(self);
+        return @ptrCast(many_self + 1);
     }
 };
 extern fn zguiWindowSettings_populate() void;

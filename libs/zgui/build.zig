@@ -85,7 +85,7 @@ pub fn package(
         .flags = cflags,
     });
     zgui_c_cpp.addCSourceFile(.{
-        .file = .{ .path = thisDir() ++ "/src/zgui.cpp" },
+        .file = .{ .path = thisDir() ++ "/src/zgui_internal.cpp" },
         .flags = cflags,
     });
 
