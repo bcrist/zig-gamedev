@@ -574,7 +574,7 @@ pub const WindowSettings = struct {
 };
 pub fn getWindowSettings(alloc: std.mem.Allocator) ![]WindowSettings {
     zguiWindowSettings_populate();
-    var n = zguiWindowSettings_size();
+    const n = zguiWindowSettings_size();
     var results = try std.ArrayList(WindowSettings).initCapacity(alloc, @intCast(n));
     errdefer results.deinit();
 
