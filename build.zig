@@ -1,7 +1,7 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-pub const min_zig_version = std.SemanticVersion{ .major = 0, .minor = 12, .patch = 0, .pre = "dev.1381" };
+pub const min_zig_version = std.SemanticVersion{ .major = 0, .minor = 12, .patch = 0, .pre = "dev.1808" };
 
 pub fn build(b: *std.Build) void {
     //
@@ -235,8 +235,9 @@ fn tests(b: *std.Build, options: Options) void {
     test_step.dependOn(zphysics.runTests(b, options.optimize, options.target));
     test_step.dependOn(zopengl.runTests(b, options.optimize, options.target));
 
-    // TODO: zsdl test not included in top-level tests until https://github.com/michal-z/zig-gamedev/issues/312 is resolved
-    //test_step.dependOn(zsdl.runTests(b, options.optimize, options.target));
+    // TODO: zsdl tests not included in top-level tests until https://github.com/michal-z/zig-gamedev/issues/312 is resolved
+    // test_step.dependOn(zsdl.runTests(b, options.optimize, options.target, .sdl2));
+    // test_step.dependOn(zsdl.runTests(b, options.optimize, options.target, .sdl3));
 }
 
 fn benchmarks(b: *std.Build, options: Options) void {
