@@ -1,5 +1,3 @@
-pub const version = @import("std").SemanticVersion{ .major = 0, .minor = 0, .patch = 5 };
-
 const builtin = @import("builtin");
 const std = @import("std");
 const assert = std.debug.assert;
@@ -437,14 +435,8 @@ pub const CharacterContactListener = extern struct {
 
     comptime {
         assert(@sizeOf(VTable) == @sizeOf(c.JPC_CharacterContactListenerVTable));
-        assert(@offsetOf(VTable, "OnAdjustBodyVelocity") == @offsetOf(
-            c.JPC_CharacterContactListenerVTable,
-            "OnAdjustBodyVelocity"
-        ));
-        assert(@offsetOf(VTable, "OnContactSolve") == @offsetOf(
-            c.JPC_CharacterContactListenerVTable,
-            "OnContactSolve"
-        ));
+        assert(@offsetOf(VTable, "OnAdjustBodyVelocity") == @offsetOf(c.JPC_CharacterContactListenerVTable, "OnAdjustBodyVelocity"));
+        assert(@offsetOf(VTable, "OnContactSolve") == @offsetOf(c.JPC_CharacterContactListenerVTable, "OnContactSolve"));
     }
 };
 
@@ -607,14 +599,7 @@ pub const ShapeFilter = extern struct {
                 sub_shape_id2: *const SubShapeId,
             ) bool {
                 _ = receiving_body_id;
-                return @as(*const ShapeFilter.VTable, @ptrCast(self.__v)).pairShouldCollide(
-                    @as(*const ShapeFilter, @ptrCast(self)),
-                    @as(*const ShapeFilter.VTable, @ptrCast(self.__v)).receiving_body_id,
-                    shape1,
-                    sub_shape_id1,
-                    shape2,
-                    sub_shape_id2
-                );
+                return @as(*const ShapeFilter.VTable, @ptrCast(self.__v)).pairShouldCollide(@as(*const ShapeFilter, @ptrCast(self)), @as(*const ShapeFilter.VTable, @ptrCast(self.__v)).receiving_body_id, shape1, sub_shape_id1, shape2, sub_shape_id2);
             }
         };
     }
@@ -825,7 +810,7 @@ pub const CharacterContactSettings = extern struct {
 pub const CharacterBaseSettings = extern struct {
     __header: VTableHeader = .{},
     up: [4]f32 align(16), // 4th element is ignored
-    supporting_volume:  [4]f32 align(16), // JPH::Plane - 4th element is used
+    supporting_volume: [4]f32 align(16), // JPH::Plane - 4th element is used
     max_slope_angle: f32,
     shape: *Shape, // must provide valid shape (such as the typical capsule)
 
@@ -854,7 +839,7 @@ pub const CharacterSettings = extern struct {
     mass: f32,
     friction: f32,
     gravity_factor: f32,
-    
+
     comptime {
         assert(@sizeOf(CharacterSettings) == @sizeOf(c.JPC_CharacterSettings));
         assert(@offsetOf(CharacterSettings, "base") == @offsetOf(c.JPC_CharacterSettings, "base"));
@@ -2284,10 +2269,7 @@ pub const Character = opaque {
         c.JPC_Character_Destroy(@as(*c.JPC_Character, @ptrCast(character)));
     }
 
-    pub fn addToPhysicsSystem(
-        character: *Character,
-        args: struct { activation: Activation = .activate, lock_bodies: bool = true }
-    ) void {
+    pub fn addToPhysicsSystem(character: *Character, args: struct { activation: Activation = .activate, lock_bodies: bool = true }) void {
         c.JPC_Character_AddToPhysicsSystem(
             @as(*c.JPC_Character, @ptrCast(character)),
             @intFromEnum(args.activation),
@@ -2297,7 +2279,7 @@ pub const Character = opaque {
     pub fn removeFromPhysicsSystem(character: *Character, args: struct { lock_bodies: bool = true }) void {
         c.JPC_Character_RemoveFromPhysicsSystem(@as(*c.JPC_Character, @ptrCast(character)), args.lock_bodies);
     }
-    
+
     pub fn getPosition(character: *const Character) [3]Real {
         var position: [3]Real = undefined;
         c.JPC_Character_GetPosition(@as(*const c.JPC_Character, @ptrCast(character)), &position);
@@ -2315,7 +2297,6 @@ pub const Character = opaque {
     pub fn setLinearVelocity(character: *Character, velocity: [3]f32) void {
         c.JPC_Character_SetLinearVelocity(@as(*c.JPC_Character, @ptrCast(character)), &velocity);
     }
-
 };
 //--------------------------------------------------------------------------------------------------
 //
@@ -2415,7 +2396,7 @@ pub const CharacterVirtual = opaque {
 pub const MotionProperties = extern struct {
     linear_velocity: [4]f32 align(16), // 4th element is ignored
     angular_velocity: [4]f32 align(16), // 4th element is ignored
-    inv_inertia_diagnonal: [4]f32 align(16),
+    inv_inertia_diagonal: [4]f32 align(16),
     inertia_rotation: [4]f32 align(16),
 
     force: [3]f32,
@@ -2458,10 +2439,10 @@ pub const MotionProperties = extern struct {
         return velocity;
     }
     pub fn setAngularVelocity(motion: *MotionProperties, velocity: [3]f32) void {
-        c.JPC_MotionProperties_SetAnglularVelocity(@as(*c.JPC_MotionProperties, @ptrCast(motion)), &velocity);
+        c.JPC_MotionProperties_SetAngularVelocity(@as(*c.JPC_MotionProperties, @ptrCast(motion)), &velocity);
     }
     pub fn setAngularVelocityClamped(motion: *MotionProperties, velocity: [3]f32) void {
-        c.JPC_MotionProperties_SetAnglularVelocityClamped(@as(*c.JPC_MotionProperties, @ptrCast(motion)), &velocity);
+        c.JPC_MotionProperties_SetAngularVelocityClamped(@as(*c.JPC_MotionProperties, @ptrCast(motion)), &velocity);
     }
 
     /// `point` is relative to the center of mass (com)
@@ -3127,13 +3108,7 @@ pub const CompoundShapeSettings = opaque {
         return @as(*CompoundShapeSettings, @ptrCast(settings));
     }
 
-    pub fn addShape(
-        settings: *CompoundShapeSettings,
-        position: [3]Real,
-        rotation: [4]Real,
-        shape: *const ShapeSettings,
-        user_data: u32
-    ) void {
+    pub fn addShape(settings: *CompoundShapeSettings, position: [3]Real, rotation: [4]Real, shape: *const ShapeSettings, user_data: u32) void {
         c.JPC_CompoundShapeSettings_AddShape(
             @as(*c.JPC_CompoundShapeSettings, @ptrCast(settings)),
             &position,
@@ -3267,15 +3242,11 @@ pub const ConstraintSettings = opaque {
                 c.JPC_ConstraintSettings_Release(@as(*c.JPC_ConstraintSettings, @ptrCast(constraint_settings)));
             }
             pub fn getRefCount(constraint_settings: *const T) u32 {
-                return c.JPC_ConstraintSettings_GetRefCount(
-                    @as(*const c.JPC_ConstraintSettings, @ptrCast(constraint_settings))
-                );
+                return c.JPC_ConstraintSettings_GetRefCount(@as(*const c.JPC_ConstraintSettings, @ptrCast(constraint_settings)));
             }
 
             pub fn getUserData(constraint_settings: *const T) u64 {
-                return c.JPC_ConstraintSettings_GetUserData(
-                    @as(*const c.JPC_ConstraintSettings, @ptrCast(constraint_settings))
-                );
+                return c.JPC_ConstraintSettings_GetUserData(@as(*const c.JPC_ConstraintSettings, @ptrCast(constraint_settings)));
             }
             pub fn setUserData(constraint_settings: *T, user_data: u64) void {
                 return c.JPC_ConstraintSettings_SetUserData(
@@ -4220,7 +4191,6 @@ test "zphysics.body.motion" {
 }
 
 test "zphysics.debugrenderer" {
-    if (builtin.target.os.tag == .macos and builtin.target.cpu.arch == .aarch64) return error.SkipZigTest;
     if (!debug_renderer_enabled) return;
 
     try init(std.testing.allocator, .{});

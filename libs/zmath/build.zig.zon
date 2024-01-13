@@ -1,5 +1,10 @@
 .{
     .name = "zmath",
     .version = "0.9.6",
-    .paths = .{""},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+    },
 }

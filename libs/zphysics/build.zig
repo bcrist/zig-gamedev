@@ -37,7 +37,7 @@ pub fn package(
 
     const zphysics_options = step.createModule();
 
-    const zphysics = b.createModule(.{
+    const zphysics = b.addModule("zphysics", .{
         .source_file = .{ .path = thisDir() ++ "/src/zphysics.zig" },
         .dependencies = &.{
             .{ .name = "zphysics_options", .module = zphysics_options },
@@ -65,6 +65,7 @@ pub fn package(
         if (args.options.enable_debug_renderer) "-DJPH_DEBUG_RENDERER" else "",
         if (args.options.use_double_precision) "-DJPH_DOUBLE_PRECISION" else "",
         if (args.options.enable_asserts or zphysics_c_cpp.optimize == .Debug) "-DJPH_ENABLE_ASSERTS" else "",
+        "-fno-access-control",
         "-fno-sanitize=undefined",
     };
 
@@ -221,6 +222,15 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run zphysics tests");
     test_step.dependOn(runTests(b, optimize, target));
+
+    _ = package(b, target, optimize, .{
+        .options = .{
+            .use_double_precision = b.option(bool, "use_double_precision", "Enable double precision") orelse false,
+            .enable_asserts = b.option(bool, "enable_asserts", "Enable assertions") orelse false,
+            .enable_cross_platform_determinism = b.option(bool, "enable_cross_platform_determinism", "Enables cross-platform determinism") orelse true,
+            .enable_debug_renderer = b.option(bool, "enable_debug_renderer", "Enable debug renderer") orelse false,
+        },
+    });
 }
 
 pub fn runTests(

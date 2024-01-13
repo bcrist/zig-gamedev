@@ -15,6 +15,17 @@ Copy `zgui` folder to a `libs` subdirectory of the root of your project.
 
 To get glfw/wgpu rendering backend working also copy `zgpu`, `zglfw`, `zpool` and `system-sdk` folders (see [zgpu](https://github.com/michal-z/zig-gamedev/tree/main/libs/zgpu) for the details). Alternatively, you can provide your own rendering backend, see: [backend_glfw_wgpu.zig](src/backend_glfw_wgpu.zig) for an example.
 
+Next, copy [build.zig.zon](build.zig.zon) from the root of the `zig-gamedev` project to the root of your project and adjust `name` and `version` accordingly:
+
+``` zig
+.{
+    .name = "<your_project_name>",
+    .version = "<your_project_version",
+    // leave the rest unchanged
+    ...
+}
+```
+
 Then in your `build.zig` add:
 ```zig
 const zgui = @import("libs/zgui/build.zig");
@@ -46,7 +57,28 @@ pub fn build(b: *std.Build) void {
     zgpu_pkg.link(exe);
 }
 ```
+
+You may also include zgui without bundled imgui or implot:
+
+```zig
+// In build.zig
+
+    const pkg = zgui.package(b, exe.target, .ReleaseSafe, .{
+        .options = .{
+            .backend = .no_backend,
+            .with_imgui = false,
+            .with_implot = false,
+        },
+    });
+    const lib = pkg.zgui_c_cpp;
+    lib.defineCMacro("IMGUI_USER_CONFIG",
+        \\"../imconfig_custom.h"
+    );
+    lib.addIncludePath("lib/imgui");
+```
+
 Now in your code you may import and use `zgui`:
+
 ```zig
 const zgui = @import("zgui");
 
