@@ -305,7 +305,7 @@ const zflecs = @import("zflecs");
 
 pub const Options = struct {
     optimize: std.builtin.Mode,
-    target: std.zig.CrossTarget,
+    target: std.Build.ResolvedTarget,
 
     zd3d12_enable_debug_layer: bool,
     zd3d12_enable_gbv: bool,
@@ -357,8 +357,8 @@ fn ensureZigVersion() !void {
     }
 }
 
-fn ensureTarget(cross: std.zig.CrossTarget) !void {
-    const target = (std.zig.system.NativeTargetInfo.detect(cross) catch unreachable).target;
+fn ensureTarget(cross: std.Build.ResolvedTarget) !void {
+    const target = cross.result;
 
     const supported = switch (target.os.tag) {
         .windows => target.cpu.arch.isX86() and target.abi.isGnu(),
